@@ -15,10 +15,10 @@ public class MonitoringApplication {
 
         System.out.println("""
                 \n
-                1. Система мониторинга запущена!
-                2. Доступна по адресу: http://localhost:8080
-                3. Swagger UI: http://localhost:8080/swagger-ui.html
-                4. Health Check: http://localhost:8080/actuator/health
+                   Система мониторинга запущена!
+                1. Доступна по адресу: http://localhost:8080
+                2. Swagger UI: http://localhost:8080/swagger-ui.html
+                3. Health Check: http://localhost:8080/actuator/health
                 
                 """);
     }
