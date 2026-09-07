@@ -29,10 +29,8 @@ public class WebSocketHandler extends TextWebSocketHandler {
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-    // Хранилище активных сессий (потокобезопасное)
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
-    // Планировщик для отправки обновлений
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     @Override
@@ -41,10 +39,10 @@ public class WebSocketHandler extends TextWebSocketHandler {
         sessions.put(sessionId, session);
         log.info("🔌 Новое WebSocket подключение: {}", sessionId);
 
-        // Отправляем текущие метрики сразу после подключения
         sendLatestMetrics(session);
 
-        // Запускаем периодическую отправку для этого сессии
+        sendLatestMetrics(session);
+
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 sendLatestMetrics(session);
@@ -59,6 +57,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
         String sessionId = session.getId();
         sessions.remove(sessionId);
         log.info("🔌 WebSocket отключен: {}, статус: {}", sessionId, status);
+        log.info("WebSocket отключен: {}, статус: {}", sessionId, status);
     }
 
     @Override
@@ -66,7 +65,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
         String payload = message.getPayload();
         log.debug("Получено сообщение от клиента: {}", payload);
 
-        // Можно обрабатывать команды от клиента
         if ("ping".equals(payload)) {
             session.sendMessage(new TextMessage("pong"));
         }
@@ -78,9 +76,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
         sessions.remove(session.getId());
     }
 
-    /**
-     * Отправить текущие метрики конкретному клиенту
-     */
     private void sendLatestMetrics(WebSocketSession session) {
         try {
             if (session.isOpen()) {
@@ -98,9 +93,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /**
-     * Отправить обновление всем подключенным клиентам
-     */
     public void broadcastMetrics() {
         if (sessions.isEmpty()) {
             return;
@@ -124,9 +116,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /**
-     * Получить количество активных подключений
-     */
     public int getActiveConnections() {
         return sessions.size();
     }

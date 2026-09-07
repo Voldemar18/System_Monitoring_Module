@@ -18,26 +18,17 @@ public class MetricController {
 
     private final MetricService metricService;
 
-    /**
-     * Получить последние значения всех метрик
-     */
     @GetMapping("/latest")
     public ResponseEntity<Map<String, Double>> getLatestAll() {
         return ResponseEntity.ok(metricService.getLatestAllMetrics());
     }
 
-    /**
-     * Получить последнее значение конкретной метрики
-     */
     @GetMapping("/latest/{metricName}")
     public ResponseEntity<Double> getLatest(@PathVariable String metricName) {
         Double value = metricService.getLatestValue(metricName);
         return value != null ? ResponseEntity.ok(value) : ResponseEntity.notFound().build();
     }
 
-    /**
-     * Получить историю метрики за период
-     */
     @GetMapping("/history")
     public ResponseEntity<List<MetricDto>> getHistory(
             @RequestParam String metricName,
@@ -48,9 +39,6 @@ public class MetricController {
         return ResponseEntity.ok(history);
     }
 
-    /**
-     * Получить последние N записей для метрики
-     */
     @GetMapping("/latest/{metricName}/{limit}")
     public ResponseEntity<List<MetricDto>> getLatest(
             @PathVariable String metricName,
@@ -60,26 +48,17 @@ public class MetricController {
         return ResponseEntity.ok(metrics);
     }
 
-    /**
-     * Получить все названия метрик
-     */
     @GetMapping("/names")
     public ResponseEntity<List<String>> getMetricNames() {
         return ResponseEntity.ok(metricService.getAllMetricNames());
     }
 
-    /**
-     * Получить среднее значение за последний час
-     */
     @GetMapping("/avg/{metricName}")
     public ResponseEntity<Double> getAverageLastHour(@PathVariable String metricName) {
         Double avg = metricService.getAverageLastHour(metricName);
         return avg != null ? ResponseEntity.ok(avg) : ResponseEntity.notFound().build();
     }
 
-    /**
-     * Принудительный сбор метрик (вручную)
-     */
     @PostMapping("/collect")
     public ResponseEntity<String> collectNow() {
         metricService.collectAndSaveMetrics();
