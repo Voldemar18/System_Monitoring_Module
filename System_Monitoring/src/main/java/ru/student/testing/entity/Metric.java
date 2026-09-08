@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Metric {
+public class Metric extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,6 +49,7 @@ public class Metric {
         this.metricName = metricName;
         this.value = value;
         this.tags = "{}";
+        initAuditFields();
     }
 
     public Metric(String host, String metricName, Double value) {
@@ -57,5 +58,11 @@ public class Metric {
         this.metricName = metricName;
         this.value = value;
         this.tags = "{}";
+        initAuditFields();
+    }
+
+    @Override
+    public String getEntityDisplayName() {
+        return String.format("Metric[%s=%.2f @ %s]", metricName, value, timestamp);
     }
 }

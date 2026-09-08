@@ -49,7 +49,7 @@ public class AlertRuleDto {
     }
 
     public AlertRule toEntity() {
-        return AlertRule.builder()
+        AlertRule rule = AlertRule.builder()
                 .id(this.id)
                 .name(this.name)
                 .metricName(this.metricName)
@@ -57,7 +57,12 @@ public class AlertRuleDto {
                 .threshold(this.threshold)
                 .durationSeconds(this.durationSeconds != null ? this.durationSeconds : 0)
                 .isActive(this.isActive != null ? this.isActive : true)
-                .createdAt(this.createdAt != null ? this.createdAt : LocalDateTime.now())
                 .build();
+
+        if (this.createdAt != null) {
+            rule.setCreatedAt(this.createdAt);
+        }
+
+        return rule;
     }
 }

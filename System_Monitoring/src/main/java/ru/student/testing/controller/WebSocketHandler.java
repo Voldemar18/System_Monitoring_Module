@@ -10,7 +10,7 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import ru.student.testing.service.MetricService;
+import ru.student.testing.service.IMetricService;
 
 import java.io.IOException;
 import java.util.Map;
@@ -19,12 +19,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * WebSocket обработчик для отправки метрик в реальном времени.
+ * Поддерживает постоянное соединение с клиентами для трансляции данных.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketHandler extends TextWebSocketHandler {
 
-    private final MetricService metricService;
+    private final IMetricService metricService;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -41,15 +45,15 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
         sendLatestMetrics(session);
 
-        sendLatestMetrics(session);
-
         scheduler.scheduleAtFixedRate(() -> {
             try {
-                sendLatestMetrics(session);
+                if (session.isOpen()) {
+                    sendLatestMetrics(session);
+                }
             } catch (Exception e) {
                 log.error("Ошибка отправки метрик через WebSocket: {}", e.getMessage());
             }
-        }, 0, 5, TimeUnit.SECONDS);
+        }, 5, 5, TimeUnit.SECONDS);
     }
 
     @Override
@@ -57,7 +61,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
         String sessionId = session.getId();
         sessions.remove(sessionId);
         log.info("🔌 WebSocket отключен: {}, статус: {}", sessionId, status);
-        log.info("WebSocket отключен: {}, статус: {}", sessionId, status);
     }
 
     @Override
@@ -72,19 +75,28 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-        log.error("Ошибка WebSocket: {}", exception.getMessage());
+        log.error("Ошибка WebSocket для сессии {}: {}", session.getId(), exception.getMessage());
         sessions.remove(session.getId());
+        try {
+            session.close(CloseStatus.SERVER_ERROR);
+        } catch (IOException e) {
+            log.error("Ошибка закрытия сессии: {}", e.getMessage());
+        }
     }
 
+    /**
+     * Отправляет последние метрики конкретному клиенту.
+     */
     private void sendLatestMetrics(WebSocketSession session) {
         try {
             if (session.isOpen()) {
                 Map<String, Double> metrics = metricService.getLatestAllMetrics();
                 String json = objectMapper.writeValueAsString(metrics);
                 session.sendMessage(new TextMessage(json));
+                log.debug("Отправлены метрики клиенту: {}", session.getId());
             }
         } catch (IOException e) {
-            log.error("Ошибка отправки сообщения: {}", e.getMessage());
+            log.error("Ошибка отправки сообщения клиенту {}: {}", session.getId(), e.getMessage());
             try {
                 session.close(CloseStatus.SERVER_ERROR);
             } catch (IOException ex) {
@@ -93,6 +105,9 @@ public class WebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * Отправляет метрики всем подключенным клиентам (broadcast).
+     */
     public void broadcastMetrics() {
         if (sessions.isEmpty()) {
             return;
@@ -102,20 +117,26 @@ public class WebSocketHandler extends TextWebSocketHandler {
             Map<String, Double> metrics = metricService.getLatestAllMetrics();
             String json = objectMapper.writeValueAsString(metrics);
 
+            int sentCount = 0;
             for (WebSocketSession session : sessions.values()) {
                 try {
                     if (session.isOpen()) {
                         session.sendMessage(new TextMessage(json));
+                        sentCount++;
                     }
                 } catch (IOException e) {
                     log.error("Ошибка отправки клиенту {}: {}", session.getId(), e.getMessage());
                 }
             }
+            log.debug("Broadcast метрик отправлен {} клиентам", sentCount);
         } catch (Exception e) {
             log.error("Ошибка broadcast метрик: {}", e.getMessage());
         }
     }
 
+    /**
+     * Получить количество активных подключений.
+     */
     public int getActiveConnections() {
         return sessions.size();
     }

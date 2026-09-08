@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor - Правила алертов</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .header h1 { font-size: 24px; }
+        .header .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .header .logout-btn:hover { background: rgba(255,255,255,0.3); }
+
+        .nav {
+            background: white;
+            padding: 0 40px;
+            display: flex;
+            gap: 30px;
+            border-bottom: 2px solid #e8ecf1;
+        }
+        .nav a {
+            padding: 16px 8px;
+            text-decoration: none;
+            color: #555;
+            font-weight: 500;
+            font-size: 15px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav a:hover { color: #1e3c72; }
+        .nav a.active {
+            color: #1e3c72;
+            border-bottom-color: #2a5298;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .page-header h2 { font-size: 22px; color: #1e3c72; }
+        .page-header .btn-add {
+            background: #2a5298;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .page-header .btn-add:hover { background: #1e3c72; }
+
+        .rules-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .rule-item {
+            padding: 16px 25px;
+            border-bottom: 1px solid #f0f2f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .rule-item:hover { background: #f8f9fa; }
+        .rule-item:last-child { border-bottom: none; }
+
+        .rule-item .left { display: flex; align-items: center; gap: 15px; }
+        .rule-item .rule-name { font-weight: 600; }
+        .rule-item .rule-details { font-size: 14px; color: #666; }
+        .rule-item .rule-details span { margin-right: 12px; }
+
+        .rule-item .right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .rule-item .toggle-btn {
+            padding: 4px 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .rule-item .toggle-btn.active { background: #d4edda; color: #155724; }
+        .rule-item .toggle-btn.inactive { background: #f8d7da; color: #721c24; }
+        .rule-item .toggle-btn:hover { opacity: 0.8; }
+
+        .rule-item .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .rule-item .btn-icon:hover { background: #e8ecf1; }
+        .rule-item .btn-icon.delete:hover { background: #fde8e8; }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 15px; }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 35px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h3 { margin-bottom: 20px; color: #1e3c72; }
+        .modal .form-group { margin-bottom: 18px; }
+        .modal .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .modal .form-group input,
+        .modal .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .modal .form-group input:focus,
+        .modal .form-group select:focus {
+            outline: none;
+            border-color: #2a5298;
+        }
+        .modal .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+        .modal .form-actions button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .modal .form-actions .btn-cancel {
+            background: #e8ecf1;
+            color: #555;
+        }
+        .modal .form-actions .btn-cancel:hover { background: #d5d9e0; }
+        .modal .form-actions .btn-save {
+            background: #2a5298;
+            color: white;
+        }
+        .modal .form-actions .btn-save:hover { background: #1e3c72; }
+
+        .modal .error-message {
+            background: #fde8e8;
+            color: #c33;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .modal .error-message.show { display: block; }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 15px; text-align: center; padding: 15px 20px; }
+            .nav { padding: 0 20px; gap: 15px; overflow-x: auto; }
+            .container { padding: 15px 20px; }
+            .rule-item { flex-direction: column; align-items: flex-start; }
+            .rule-item .right { width: 100%; justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <h1>📊 System Monitor</h1>
+    <button class="logout-btn" onclick="logout()">Выйти</button>
+</header>
+
+<nav class="nav">
+    <a href="/">📈 Дашборд</a>
+    <a href="/alerts">🔔 Алерты <span id="alert-badge" style="background:#e74c3c;color:white;border-radius:50%;padding:1px 8px;font-size:12px;margin-left:5px;">0</span></a>
+    <a href="/rules" class="active">⚙️ Правила</a>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h2>⚙️ Правила алертов</h2>
+        <button class="btn-add" onclick="showCreateModal()">➕ Создать правило</button>
+    </div>
+
+    <div class="rules-list" id="rules-list">
+        <div class="empty-state">
+            <div class="icon">🔄</div>
+            <p>Загрузка...</p>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL ===== -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h3 id="modal-title">Создать правило</h3>
+        <div class="error-message" id="modal-error"></div>
+
+        <form id="rule-form" onsubmit="saveRule(event)">
+            <input type="hidden" id="rule-id">
+
+            <div class="form-group">
+                <label for="rule-name">Название правила</label>
+                <input type="text" id="rule-name" placeholder="Например: Высокая загрузка CPU" required>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-metric">Метрика</label>
+                <select id="rule-metric" required>
+                    <option value="">Выберите метрику...</option>
+                    <option value="cpu_percent">CPU (%)</option>
+                    <option value="ram_used_percent">RAM (%)</option>
+                    <option value="disk_used_percent">Диск (%)</option>
+                    <option value="load_avg_1min">Нагрузка (1 мин)</option>
+                    <option value="load_avg_5min">Нагрузка (5 мин)</option>
+                    <option value="load_avg_15min">Нагрузка (15 мин)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-condition">Условие</label>
+                <select id="rule-condition" required>
+                    <option value=">">&gt; (больше)</option>
+                    <option value="<">&lt; (меньше)</option>
+                    <option value=">=">&gt;= (больше или равно)</option>
+                    <option value="<=">&lt;= (меньше или равно)</option>
+                    <option value="==">== (равно)</option>
+                    <option value="!=">!= (не равно)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-threshold">Пороговое значение</label>
+                <input type="number" id="rule-threshold" step="0.1" placeholder="Например: 80" required>
+            </div>
+
+            <div class="form-group">
+                <label for="rule-duration">Длительность (сек) <span style="font-weight:400;color:#888;">0 = сразу</span></label>
+                <input type="number" id="rule-duration" value="0" min="0">
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="rule-active" checked> Активно
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn-save">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let editingRuleId = null;
+
+    // =============================================
+    // LOAD RULES
+    // =============================================
+    function loadRules() {
+        const container = document.getElementById('rules-list');
+        container.innerHTML = '<div class="empty-state"><div class="icon">🔄</div><p>Загрузка...</p></div>';
+
+        fetch('/api/alerts/rules')
+            .then(res => res.json())
+            .then(data => {
+                // Обновляем бейдж с активными алертами
+                fetch('/api/alerts/active/count')
+                    .then(r => r.json())
+                    .then(count => {
+                        const badge = document.getElementById('alert-badge');
+                        if (count > 0) {
+                            badge.style.display = 'inline';
+                            badge.textContent = count;
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    })
+                    .catch(() => {});
+
+                if (data.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <p>Нет правил. Создайте первое правило!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.map(rule => `
+                    <div class="rule-item">
+                        <div class="left">
+                            <div>
+                                <div class="rule-name">${rule.name}</div>
+                                <div class="rule-details">
+                                    <span>📊 ${rule.metricName}</span>
+                                    <span>${rule.condition} ${rule.threshold}</span>
+                                    <span>⏱ ${rule.durationSeconds || 0} сек</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="right">
+                            <button class="toggle-btn ${rule.active ? 'active' : 'inactive'}"
+                                    onclick="toggleRule(${rule.id}, ${!rule.active})">
+                                ${rule.active ? '✅ Активно' : '❌ Неактивно'}
+                            </button>
+                            <button class="btn-icon" onclick="editRule(${rule.id})" title="Редактировать">✏️</button>
+                            <button class="btn-icon delete" onclick="deleteRule(${rule.id})" title="Удалить">🗑️</button>
+                        </div>
+                    </div>
+                `).join('');
+            })
+            .catch(() => {
+                container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Ошибка загрузки</p></div>';
+            });
+    }
+
+    // =============================================
+    // CREATE / EDIT RULE
+    // =============================================
+    function showCreateModal() {
+        editingRuleId = null;
+        document.getElementById('modal-title').textContent = '➕ Создать правило';
+        document.getElementById('rule-form').reset();
+        document.getElementById('rule-id').value = '';
+        document.getElementById('rule-active').checked = true;
+        document.getElementById('modal-error').className = 'error-message';
+        document.getElementById('modal').classList.add('show');
+    }
+
+    function editRule(id) {
+        fetch('/api/alerts/rules/' + id)
+            .then(res => res.json())
+            .then(rule => {
+                editingRuleId = id;
+                document.getElementById('modal-title').textContent = '✏️ Редактировать правило';
+                document.getElementById('rule-id').value = id;
+                document.getElementById('rule-name').value = rule.name;
+                document.getElementById('rule-metric').value = rule.metricName;
+                document.getElementById('rule-condition').value = rule.condition;
+                document.getElementById('rule-threshold').value = rule.threshold;
+                document.getElementById('rule-duration').value = rule.durationSeconds || 0;
+                document.getElementById('rule-active').checked = rule.active !== false;
+                document.getElementById('modal-error').className = 'error-message';
+                document.getElementById('modal').classList.add('show');
+            })
+            .catch(() => alert('Ошибка загрузки правила'));
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('show');
+    }
+
+    function saveRule(event) {
+        event.preventDefault();
+        const errorEl = document.getElementById('modal-error');
+        errorEl.className = 'error-message';
+
+        const data = {
+            name: document.getElementById('rule-name').value.trim(),
+            metricName: document.getElementById('rule-metric').value,
+            condition: document.getElementById('rule-condition').value,
+            threshold: parseFloat(document.getElementById('rule-threshold').value),
+            durationSeconds: parseInt(document.getElementById('rule-duration').value) || 0,
+            isActive: document.getElementById('rule-active').checked
+        };
+
+        if (!data.name || !data.metricName || isNaN(data.threshold)) {
+            errorEl.textContent = 'Заполните все обязательные поля';
+            errorEl.className = 'error-message show';
+            return;
+        }
+
+        const id = document.getElementById('rule-id').value;
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? '/api/alerts/rules/' + id : '/api/alerts/rules';
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(res => {
+            if (!res.ok) return res.json().then(err => { throw new Error(err.message || 'Ошибка'); });
+            return res.json();
+        })
+        .then(() => {
+            closeModal();
+            loadRules();
+        })
+        .catch(err => {
+            errorEl.textContent = err.message || 'Ошибка сохранения';
+            errorEl.className = 'error-message show';
+        });
+    }
+
+    // =============================================
+    // TOGGLE / DELETE
+    // =============================================
+    function toggleRule(id, newState) {
+        fetch('/api/alerts/rules/' + id + '/toggle', {
+            method: 'PATCH'
+        })
+        .then(res => res.json())
+        .then(() => loadRules())
+        .catch(() => alert('Ошибка переключения'));
+    }
+
+    function deleteRule(id) {
+        if (!confirm('Удалить правило?')) return;
+        fetch('/api/alerts/rules/' + id, { method: 'DELETE' })
+            .then(() => loadRules())
+            .catch(() => alert('Ошибка удаления'));
+    }
+
+    // =============================================
+    // LOGOUT
+    // =============================================
+    function logout() {
+        fetch('/logout', { method: 'POST' })
+            .then(() => { window.location.href = '/login?logout=true'; })
+            .catch(() => { window.location.href = '/login'; });
+    }
+
+    // =============================================
+    // INIT
+    // =============================================
+    document.addEventListener('DOMContentLoaded', function() {
+        loadRules();
+        // Закрытие модалки по клику вне
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+        // Автообновление каждые 30 секунд
+        setInterval(loadRules, 30000);
+    });
+</script>
+</body>
+</html>

@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +15,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AlertRule {
+public class AlertRule extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,13 +41,19 @@ public class AlertRule {
     @Builder.Default
     private Boolean isActive = true;
 
-    @Column(name = "created_at", nullable = false)
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
-
     @OneToMany(mappedBy = "rule", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<AlertEvent> alertEvents = new ArrayList<>();
+
+    public AlertRule(String name, String metricName, String condition, Double threshold) {
+        this.name = name;
+        this.metricName = metricName;
+        this.condition = condition;
+        this.threshold = threshold;
+        this.isActive = true;
+        this.durationSeconds = 0;
+        initAuditFields();
+    }
 
     public boolean isViolated(Double currentValue) {
         if (currentValue == null) {
@@ -67,13 +72,13 @@ public class AlertRule {
 
     public static AlertRule createActive(String name, String metricName,
                                          String condition, Double threshold) {
-        return AlertRule.builder()
-                .name(name)
-                .metricName(metricName)
-                .condition(condition)
-                .threshold(threshold)
-                .isActive(true)
-                .durationSeconds(0)
-                .build();
+        AlertRule rule = new AlertRule(name, metricName, condition, threshold);
+        rule.initAuditFields();
+        return rule;
+    }
+
+    @Override
+    public String getEntityDisplayName() {
+        return String.format("AlertRule[%s: %s %s %.2f]", name, metricName, condition, threshold);
     }
 }

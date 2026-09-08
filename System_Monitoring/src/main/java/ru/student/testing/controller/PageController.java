@@ -8,16 +8,21 @@ public class PageController {
 
     @GetMapping("/")
     public String index() {
-        return "index";
+        return "index";  // Должен быть файл index.html в src/main/resources/templates/
     }
 
     @GetMapping("/alerts")
     public String alerts() {
-        return "alerts";
+        return "alerts"; // alerts.html
     }
 
     @GetMapping("/rules")
     public String rules() {
-        return "rules";
+        return "rules";  // rules.html
+    }
+
+    @GetMapping("/login")
+    public String login() {
+        return "login";  // login.html
     }
 }

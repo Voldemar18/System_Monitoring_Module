@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor - Алерты</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .header h1 { font-size: 24px; }
+        .header .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .header .logout-btn:hover { background: rgba(255,255,255,0.3); }
+
+        .nav {
+            background: white;
+            padding: 0 40px;
+            display: flex;
+            gap: 30px;
+            border-bottom: 2px solid #e8ecf1;
+        }
+        .nav a {
+            padding: 16px 8px;
+            text-decoration: none;
+            color: #555;
+            font-weight: 500;
+            font-size: 15px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav a:hover { color: #1e3c72; }
+        .nav a.active {
+            color: #1e3c72;
+            border-bottom-color: #2a5298;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .page-header h2 { font-size: 22px; color: #1e3c72; }
+        .page-header .count-badge {
+            background: #e74c3c;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .filters button {
+            padding: 8px 20px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .filters button:hover { border-color: #2a5298; }
+        .filters button.active {
+            border-color: #2a5298;
+            background: #e8edf5;
+            color: #1e3c72;
+            font-weight: 600;
+        }
+
+        .alert-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .alert-item {
+            padding: 16px 25px;
+            border-bottom: 1px solid #f0f2f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .alert-item:hover { background: #f8f9fa; }
+        .alert-item:last-child { border-bottom: none; }
+
+        .alert-item .left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .alert-item .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .alert-item .status-dot.active { background: #e74c3c; }
+        .alert-item .status-dot.resolved { background: #2ecc71; }
+
+        .alert-item .alert-name { font-weight: 600; }
+        .alert-item .alert-details {
+            font-size: 14px;
+            color: #666;
+        }
+        .alert-item .alert-details span { margin-right: 15px; }
+        .alert-item .alert-time {
+            font-size: 13px;
+            color: #999;
+        }
+        .alert-item .badge {
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .alert-item .badge.active { background: #fde8e8; color: #e74c3c; }
+        .alert-item .badge.resolved { background: #e8f5ed; color: #27ae60; }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 15px; }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 15px; text-align: center; padding: 15px 20px; }
+            .nav { padding: 0 20px; gap: 15px; overflow-x: auto; }
+            .container { padding: 15px 20px; }
+            .alert-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .alert-item .left { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <h1>📊 System Monitor</h1>
+    <button class="logout-btn" onclick="logout()">Выйти</button>
+</header>
+
+<nav class="nav">
+    <a href="/">📈 Дашборд</a>
+    <a href="/alerts" class="active">🔔 Алерты <span id="alert-badge" style="background:#e74c3c;color:white;border-radius:50%;padding:1px 8px;font-size:12px;margin-left:5px;">0</span></a>
+    <a href="/rules">⚙️ Правила</a>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h2>🔔 События алертов</h2>
+        <span class="count-badge" id="active-count">Активных: 0</span>
+    </div>
+
+    <div class="filters">
+        <button class="active" data-filter="all">Все</button>
+        <button data-filter="active">Активные</button>
+        <button data-filter="resolved">Разрешенные</button>
+        <button onclick="refreshAlerts()" style="margin-left:auto;background:#2a5298;color:white;border-color:#2a5298;">🔄 Обновить</button>
+    </div>
+
+    <div class="alert-list" id="alert-list">
+        <div class="empty-state">
+            <div class="icon">🔄</div>
+            <p>Загрузка...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentFilter = 'all';
+
+    function loadAlerts(filter = 'all') {
+        const container = document.getElementById('alert-list');
+        container.innerHTML = '<div class="empty-state"><div class="icon">🔄</div><p>Загрузка...</p></div>';
+
+        // Загружаем все события
+        fetch('/api/alerts/events')
+            .then(res => res.json())
+            .then(data => {
+                // Фильтруем
+                let filtered = data;
+                if (filter === 'active') {
+                    filtered = data.filter(a => a.status === 'triggered');
+                } else if (filter === 'resolved') {
+                    filtered = data.filter(a => a.status === 'resolved');
+                }
+
+                const activeCount = data.filter(a => a.status === 'triggered').length;
+                document.getElementById('active-count').textContent = 'Активных: ' + activeCount;
+                document.getElementById('alert-badge').textContent = activeCount;
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">✅</div>
+                            <p>Нет событий алертов</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = filtered.map(alert => `
+                    <div class="alert-item">
+                        <div class="left">
+                            <span class="status-dot ${alert.status === 'triggered' ? 'active' : 'resolved'}"></span>
+                            <div>
+                                <div class="alert-name">⚠️ ${alert.ruleName || 'Без названия'}</div>
+                                <div class="alert-details">
+                                    <span>📊 ${alert.metricName || 'N/A'}</span>
+                                    <span>🎯 Порог: ${alert.threshold?.toFixed(1) || '--'}</span>
+                                    <span>📈 Значение: <strong>${alert.triggerValue?.toFixed(1) || '--'}</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:15px;">
+                            <span class="badge ${alert.status}">${alert.status === 'triggered' ? 'Активен' : 'Разрешен'}</span>
+                            <span class="alert-time">${formatTime(alert.startedAt)}</span>
+                        </div>
+                    </div>
+                `).join('');
+            })
+            .catch(() => {
+                container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Ошибка загрузки</p></div>';
+            });
+    }
+
+    function formatTime(dateStr) {
+        if (!dateStr) return '--:--';
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+        } catch { return '--:--'; }
+    }
+
+    function refreshAlerts() {
+        loadAlerts(currentFilter);
+    }
+
+    function logout() {
+        fetch('/logout', { method: 'POST' })
+            .then(() => { window.location.href = '/login?logout=true'; })
+            .catch(() => { window.location.href = '/login'; });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Фильтры
+        document.querySelectorAll('.filters button[data-filter]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filters button[data-filter]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                loadAlerts(currentFilter);
+            });
+        });
+
+        loadAlerts('all');
+        // Автообновление каждые 15 секунд
+        setInterval(() => loadAlerts(currentFilter), 15000);
+    });
+</script>
+</body>
+</html>

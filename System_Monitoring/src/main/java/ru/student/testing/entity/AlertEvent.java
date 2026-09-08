@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AlertEvent {
+public class AlertEvent extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,11 +47,13 @@ public class AlertEvent {
         this.triggerValue = triggerValue;
         this.startedAt = LocalDateTime.now();
         this.status = "triggered";
+        initAuditFields();
     }
 
     public void resolve() {
         this.status = "resolved";
         this.resolvedAt = LocalDateTime.now();
+        initAuditFields();
     }
 
     public boolean isActive() {
@@ -60,5 +62,10 @@ public class AlertEvent {
 
     public boolean isResolved() {
         return "resolved".equals(status) && resolvedAt != null;
+    }
+
+    @Override
+    public String getEntityDisplayName() {
+        return String.format("AlertEvent[%s: %.2f @ %s]", status, triggerValue, startedAt);
     }
 }

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в систему мониторинга</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 45px 40px 35px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-container h1 {
+            text-align: center;
+            color: #1e3c72;
+            margin-bottom: 5px;
+            font-size: 28px;
+        }
+        .login-container .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #2a5298;
+        }
+        .form-group input[type="submit"] {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .form-group input[type="submit"]:hover {
+            transform: scale(1.02);
+        }
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c33;
+            display: none;
+        }
+        .error-message.show { display: block; }
+        .info-message {
+            background: #e8f4fd;
+            color: #1e3c72;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2a5298;
+            display: none;
+        }
+        .info-message.show { display: block; }
+        .demo-credentials {
+            margin-top: 25px;
+            padding: 15px 18px;
+            background: #f5f7fa;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+        .demo-credentials p {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1e3c72;
+        }
+        .demo-credentials .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 14px;
+        }
+        .demo-credentials .row .login { font-weight: 500; }
+        .demo-credentials .row .role {
+            font-size: 12px;
+            padding: 1px 10px;
+            border-radius: 10px;
+        }
+        .demo-credentials .row .role.admin { background: #d4edda; color: #155724; }
+        .demo-credentials .row .role.user { background: #cce5ff; color: #004085; }
+        .demo-credentials .row .role.viewer { background: #e8e8e8; color: #555; }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <h1>📊 System Monitor</h1>
+    <p class="subtitle">Войдите в систему мониторинга</p>
+
+    <div id="error-message" class="error-message">
+        ❌ Неверное имя пользователя или пароль
+    </div>
+
+    <div id="logout-message" class="info-message">
+        ✅ Вы успешно вышли из системы
+    </div>
+
+    <form action="/login" method="post">
+        <div class="form-group">
+            <label for="username">Имя пользователя</label>
+            <input type="text" id="username" name="username" placeholder="Введите логин" required autofocus>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" name="password" placeholder="Введите пароль" required>
+        </div>
+
+        <div class="form-group">
+            <input type="submit" value="Войти">
+        </div>
+    </form>
+
+    <div class="demo-credentials">
+        <p>👤 Тестовые аккаунты:</p>
+        <div class="row">
+            <span class="login"><strong>admin</strong> / admin123</span>
+            <span class="role admin">Администратор</span>
+        </div>
+        <div class="row">
+            <span class="login"><strong>user</strong> / user123</span>
+            <span class="role user">Пользователь</span>
+        </div>
+        <div class="row">
+            <span class="login"><strong>viewer</strong> / viewer123</span>
+            <span class="role viewer">Наблюдатель</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('error')) {
+        document.getElementById('error-message').classList.add('show');
+    }
+    if (urlParams.has('logout')) {
+        document.getElementById('logout-message').classList.add('show');
+    }
+</script>
+
+</body>
+</html>

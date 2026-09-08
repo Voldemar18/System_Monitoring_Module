@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor - Дашборд</title>
+    <style>
+        /* ===== RESET & BASE ===== */
+        {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .header .user-info span {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        .header .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 14px;
+        }
+        .header .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* ===== NAVIGATION ===== */
+        .nav {
+            background: white;
+            padding: 0 40px;
+            display: flex;
+            gap: 30px;
+            border-bottom: 2px solid #e8ecf1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .nav a {
+            padding: 16px 8px;
+            text-decoration: none;
+            color: #555;
+            font-weight: 500;
+            font-size: 15px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav a:hover {
+            color: #1e3c72;
+        }
+        .nav a.active {
+            color: #1e3c72;
+            border-bottom-color: #2a5298;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        /* ===== STATUS BAR ===== */
+        .status-bar {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 25px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .status-bar .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .status-bar .status-item .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-bar .status-item .dot.green { background: #2ecc71; }
+        .status-bar .status-item .dot.yellow { background: #f39c12; }
+        .status-bar .status-item .dot.red { background: #e74c3c; }
+        .status-bar .status-item .label { color: #888; }
+        .status-bar .status-item .value { font-weight: 600; }
+
+        /* ===== METRICS GRID ===== */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .metric-card .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 0 15px 0;
+            background: none;
+            color: #333;
+            box-shadow: none;
+        }
+        .metric-card .header .title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #555;
+        }
+        .metric-card .header .icon {
+            font-size: 28px;
+        }
+        .metric-card .value {
+            font-size: 38px;
+            font-weight: 700;
+            padding: 10px 0;
+        }
+        .metric-card .sub {
+            font-size: 14px;
+            color: #888;
+            padding-top: 5px;
+            border-top: 1px solid #f0f2f5;
+        }
+        .metric-card .sub span {
+            margin-right: 15px;
+        }
+
+        /* ===== CHARTS ===== */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .chart-card h3 {
+            font-size: 15px;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        .chart-card canvas {
+            width: 100% !important;
+            max-height: 200px;
+        }
+
+        /* ===== ALERTS PREVIEW ===== */
+        .alerts-preview {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .alerts-preview .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 0 15px 0;
+            background: none;
+            color: #333;
+            box-shadow: none;
+        }
+        .alerts-preview .header h3 {
+            font-size: 16px;
+            color: #555;
+        }
+        .alerts-preview .header a {
+            color: #2a5298;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .alerts-preview .header a:hover {
+            text-decoration: underline;
+        }
+        .alert-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            border-left: 4px solid #f39c12;
+        }
+        .alert-item.critical {
+            border-left-color: #e74c3c;
+            background: #fef5f5;
+        }
+        .alert-item .alert-name {
+            font-weight: 500;
+        }
+        .alert-item .alert-value {
+            font-size: 14px;
+            color: #666;
+        }
+        .alert-item .alert-time {
+            font-size: 12px;
+            color: #999;
+        }
+        .no-alerts {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+                padding: 15px 20px;
+            }
+            .nav {
+                overflow-x: auto;
+                padding: 0 20px;
+                gap: 15px;
+            }
+            .container {
+                padding: 15px 20px;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .status-bar {
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: center;
+            }
+        }
+        @media (max-width: 480px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            .metric-card .value {
+                font-size: 28px;
+            }
+        }
+
+        /* ===== LOADING ===== */
+        .loading {
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+        .last-update {
+            font-size: 12px;
+            color: #999;
+            text-align: right;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <h1>📊 System Monitor</h1>
+    <div class="user-info">
+        <span id="username">admin</span>
+        <button class="logout-btn" onclick="logout()">Выйти</button>
+    </div>
+</header>
+
+<!-- NAVIGATION -->
+<nav class="nav">
+    <a href="/" class="active">📈 Дашборд</a>
+    <a href="/alerts">🔔 Алерты <span id="alert-badge" style="background:#e74c3c;color:white;border-radius:50%;padding:1px 8px;font-size:12px;margin-left:5px;display:none;">0</span></a>
+    <a href="/rules">⚙️ Правила</a>
+</nav>
+
+<!-- MAIN -->
+<div class="container">
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="dot green" id="status-dot"></span>
+            <span class="label">Статус:</span>
+            <span class="value" id="system-status">Норма</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Активных алертов:</span>
+            <span class="value" id="active-alerts-count">0</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Подключений WebSocket:</span>
+            <span class="value" id="ws-connections">0</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Обновлено:</span>
+            <span class="value" id="last-update">--:--:--</span>
+        </div>
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="metrics-grid" id="metrics-grid">
+        <!-- CPU -->
+        <div class="metric-card">
+            <div class="header">
+                <span class="title">🖥️ Загрузка CPU</span>
+                <span class="icon">⚡</span>
+            </div>
+            <div class="value" id="cpu-value">--%</div>
+            <div class="sub">
+                <span>1 мин: <strong id="load-1">--</strong></span>
+                <span>5 мин: <strong id="load-5">--</strong></span>
+                <span>15 мин: <strong id="load-15">--</strong></span>
+            </div>
+        </div>
+
+        <!-- RAM -->
+        <div class="metric-card">
+            <div class="header">
+                <span class="title">💾 Память (RAM)</span>
+                <span class="icon">🧠</span>
+            </div>
+            <div class="value" id="ram-value">--%</div>
+            <div class="sub">
+                <span>Использовано: <strong id="ram-used">-- MB</strong></span>
+                <span>Всего: <strong id="ram-total">-- MB</strong></span>
+            </div>
+        </div>
+
+        <!-- Disk -->
+        <div class="metric-card">
+            <div class="header">
+                <span class="title">💿 Диск</span>
+                <span class="icon">💾</span>
+            </div>
+            <div class="value" id="disk-value">--%</div>
+            <div class="sub">
+                <span>Использовано: <strong id="disk-used">-- GB</strong></span>
+                <span>Всего: <strong id="disk-total">-- GB</strong></span>
+            </div>
+        </div>
+
+        <!-- Network -->
+        <div class="metric-card">
+            <div class="header">
+                <span class="title">🌐 Сеть</span>
+                <span class="icon">📡</span>
+            </div>
+            <div class="value" id="network-value">-- MB/s</div>
+            <div class="sub">
+                <span>Входящий: <strong id="network-rx">--</strong></span>
+                <span>Исходящий: <strong id="network-tx">--</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>📈 История CPU, %</h3>
+            <canvas id="cpu-chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>📈 История RAM, %</h3>
+            <canvas id="ram-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Alerts Preview -->
+    <div class="alerts-preview">
+        <div class="header">
+            <h3>🔔 Последние алерты</h3>
+            <a href="/alerts">Все алерты →</a>
+        </div>
+        <div id="alerts-preview-list">
+            <div class="no-alerts">✅ Нет активных алертов</div>
+        </div>
+    </div>
+
+    <div class="last-update" id="update-info">Обновление в реальном времени</div>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    // =============================================
+    // 1. CONFIG
+    // =============================================
+    const WS_URL = 'ws://' + window.location.host + '/ws/metrics';
+    const API_BASE = '/api';
+
+    // =============================================
+    // 2. STATE
+    // =============================================
+    let ws = null;
+    let cpuChart = null;
+    let ramChart = null;
+    const MAX_DATA_POINTS = 60;
+    let cpuData = [];
+    let ramData = [];
+    let isConnected = false;
+
+    // =============================================
+    // 3. CHART INIT
+    // =============================================
+    function initCharts() {
+        const ctx1 = document.getElementById('cpu-chart').getContext('2d');
+        const ctx2 = document.getElementById('ram-chart').getContext('2d');
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: { callback: v => v + '%' }
+                },
+                x: {
+                    ticks: { maxTicksLimit: 10, font: { size: 9 } }
+                }
+            },
+            animation: { duration: 200 }
+        };
+
+        cpuChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CPU %',
+                    data: [],
+                    borderColor: '#2a5298',
+                    backgroundColor: 'rgba(42,82,152,0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                }]
+            },
+            options: commonOptions
+        });
+
+        ramChart = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'RAM %',
+                    data: [],
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39,174,96,0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                }]
+            },
+            options: commonOptions
+        });
+    }
+
+    // =============================================
+    // 4. UPDATE UI
+    // =============================================
+    function updateMetrics(data) {
+        // CPU
+        if (data.cpu_percent !== undefined) {
+            document.getElementById('cpu-value').textContent = data.cpu_percent.toFixed(1) + '%';
+            document.getElementById('cpu-value').style.color = getColor(data.cpu_percent, 70, 90);
+        }
+        if (data.load_avg_1min !== undefined) {
+            document.getElementById('load-1').textContent = data.load_avg_1min.toFixed(2);
+        }
+        if (data.load_avg_5min !== undefined) {
+            document.getElementById('load-5').textContent = data.load_avg_5min.toFixed(2);
+        }
+        if (data.load_avg_15min !== undefined) {
+            document.getElementById('load-15').textContent = data.load_avg_15min.toFixed(2);
+        }
+
+        // RAM
+        if (data.ram_used_percent !== undefined) {
+            document.getElementById('ram-value').textContent = data.ram_used_percent.toFixed(1) + '%';
+            document.getElementById('ram-value').style.color = getColor(data.ram_used_percent, 75, 90);
+        }
+        if (data.ram_used_mb !== undefined) {
+            document.getElementById('ram-used').textContent = data.ram_used_mb.toFixed(0) + ' MB';
+        }
+        if (data.ram_total_mb !== undefined) {
+            document.getElementById('ram-total').textContent = data.ram_total_mb.toFixed(0) + ' MB';
+        }
+
+        // Disk
+        if (data.disk_used_percent !== undefined) {
+            document.getElementById('disk-value').textContent = data.disk_used_percent.toFixed(1) + '%';
+            document.getElementById('disk-value').style.color = getColor(data.disk_used_percent, 80, 95);
+        }
+        if (data.disk_used_gb !== undefined) {
+            document.getElementById('disk-used').textContent = data.disk_used_gb.toFixed(1) + ' GB';
+        }
+        if (data.disk_total_gb !== undefined) {
+            document.getElementById('disk-total').textContent = data.disk_total_gb.toFixed(1) + ' GB';
+        }
+
+        // Network
+        if (data.network_rx_mb !== undefined) {
+            document.getElementById('network-rx').textContent = data.network_rx_mb.toFixed(2) + ' MB/s';
+        }
+        if (data.network_tx_mb !== undefined) {
+            document.getElementById('network-tx').textContent = data.network_tx_mb.toFixed(2) + ' MB/s';
+        }
+        const netTotal = (data.network_rx_mb || 0) + (data.network_tx_mb || 0);
+        document.getElementById('network-value').textContent = netTotal.toFixed(2) + ' MB/s';
+
+        // Update charts
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2,'0') + ':' +
+                       now.getMinutes().toString().padStart(2,'0') + ':' +
+                       now.getSeconds().toString().padStart(2,'0');
+        document.getElementById('last-update').textContent = timeStr;
+
+        if (data.cpu_percent !== undefined) {
+            cpuData.push({ time: timeStr, value: data.cpu_percent });
+            if (cpuData.length > MAX_DATA_POINTS) cpuData.shift();
+            updateChart(cpuChart, cpuData);
+        }
+        if (data.ram_used_percent !== undefined) {
+            ramData.push({ time: timeStr, value: data.ram_used_percent });
+            if (ramData.length > MAX_DATA_POINTS) ramData.shift();
+            updateChart(ramChart, ramData);
+        }
+    }
+
+    function updateChart(chart, data) {
+        chart.data.labels = data.map(d => d.time);
+        chart.data.datasets[0].data = data.map(d => d.value);
+        chart.update('none');
+    }
+
+    function getColor(value, warning, critical) {
+        if (value > critical) return '#e74c3c';
+        if (value > warning) return '#f39c12';
+        return '#2ecc71';
+    }
+
+    // =============================================
+    // 5. ALERTS PREVIEW
+    // =============================================
+    function loadAlertsPreview() {
+        fetch(API_BASE + '/alerts/active')
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById('alerts-preview-list');
+                const badge = document.getElementById('alert-badge');
+                document.getElementById('active-alerts-count').textContent = data.length;
+
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="no-alerts">✅ Нет активных алертов</div>';
+                    badge.style.display = 'none';
+                    return;
+                }
+
+                badge.style.display = 'inline';
+                badge.textContent = data.length;
+
+                container.innerHTML = data.slice(0, 5).map(alert => `
+                    <div class="alert-item ${alert.triggerValue > 90 ? 'critical' : ''}">
+                        <span class="alert-name">⚠️ ${alert.ruleName || 'Без названия'}</span>
+                        <span class="alert-value">${alert.metricName}: ${alert.triggerValue?.toFixed(1) || '--'}</span>
+                        <span class="alert-time">${formatTime(alert.startedAt)}</span>
+                    </div>
+                `).join('');
+            })
+            .catch(() => {});
+    }
+
+    function formatTime(dateStr) {
+        if (!dateStr) return '--:--';
+        try {
+            const d = new Date(dateStr);
+            return d.getHours().toString().padStart(2,'0') + ':' +
+                   d.getMinutes().toString().padStart(2,'0');
+        } catch { return '--:--'; }
+    }
+
+    // =============================================
+    // 6. WEBSOCKET
+    // =============================================
+    function connectWebSocket() {
+        ws = new WebSocket(WS_URL);
+
+        ws.onopen = function() {
+            isConnected = true;
+            document.getElementById('status-dot').className = 'dot green';
+            document.getElementById('system-status').textContent = 'Норма';
+            document.getElementById('ws-connections').textContent = '1';
+            console.log('WebSocket подключен');
+        };
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                updateMetrics(data);
+            } catch (e) {
+                console.error('Ошибка парсинга:', e);
+            }
+        };
+
+        ws.onclose = function() {
+            isConnected = false;
+            document.getElementById('status-dot').className = 'dot red';
+            document.getElementById('system-status').textContent = 'Нет соединения';
+            document.getElementById('ws-connections').textContent = '0';
+            console.log('WebSocket отключен, переподключение через 3 сек...');
+            setTimeout(connectWebSocket, 3000);
+        };
+
+        ws.onerror = function(err) {
+            console.error('WebSocket ошибка:', err);
+        };
+    }
+
+    // =============================================
+    // 7. LOGOUT
+    // =============================================
+    function logout() {
+        fetch('/logout', { method: 'POST' })
+            .then(() => { window.location.href = '/login?logout=true'; })
+            .catch(() => { window.location.href = '/login'; });
+    }
+
+    // =============================================
+    // 8. INIT
+    // =============================================
+    document.addEventListener('DOMContentLoaded', function() {
+        initCharts();
+        connectWebSocket();
+        loadAlertsPreview();
+        // Обновляем алерты каждые 10 секунд
+        setInterval(loadAlertsPreview, 10000);
+        // Получаем имя пользователя
+        fetch('/actuator/info').catch(() => {});
+    });
+</script>
+</body>
+</html>
