@@ -30,5 +30,12 @@ public interface IAlertService {
 
     List<AlertEventDto> getAllAlertEvents();
 
+    List<AlertEventDto> getRecentAlertEvents(int limit);
+
+    // ===== НОВЫЕ МЕТОДЫ ДЛЯ ФИЛЬТРАЦИИ =====
+    List<AlertEventDto> getAlertEventsForLastHours(int hours);
+
+    List<AlertEventDto> getAlertEventsForLastHours(int hours, int page, int size);
+
     long getActiveAlertsCount();
 }

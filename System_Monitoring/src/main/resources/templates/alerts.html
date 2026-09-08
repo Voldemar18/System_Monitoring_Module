@@ -81,6 +81,7 @@
             gap: 15px;
             margin-bottom: 25px;
             flex-wrap: wrap;
+            align-items: center;
         }
         .filters button {
             padding: 8px 20px;
@@ -98,12 +99,23 @@
             color: #1e3c72;
             font-weight: 600;
         }
+        .filters .refresh-btn {
+            margin-left: auto;
+            background: #2a5298;
+            color: white;
+            border-color: #2a5298;
+        }
+        .filters .refresh-btn:hover {
+            background: #1e3c72;
+            border-color: #1e3c72;
+        }
 
         .alert-list {
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.06);
             overflow: hidden;
+            min-height: 200px;
         }
         .alert-item {
             padding: 16px 25px;
@@ -156,6 +168,29 @@
             color: #888;
         }
         .empty-state .icon { font-size: 48px; margin-bottom: 15px; }
+        .empty-state .sub-text {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 50px;
+        }
+        .loading-spinner .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2a5298;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
         @media (max-width: 768px) {
             .header { flex-direction: column; gap: 15px; text-align: center; padding: 15px 20px; }
@@ -163,6 +198,8 @@
             .container { padding: 15px 20px; }
             .alert-item { flex-direction: column; align-items: flex-start; gap: 8px; }
             .alert-item .left { width: 100%; }
+            .filters { flex-direction: column; align-items: stretch; }
+            .filters .refresh-btn { margin-left: 0; }
         }
     </style>
 </head>
@@ -175,7 +212,7 @@
 
 <nav class="nav">
     <a href="/">📈 Дашборд</a>
-    <a href="/alerts" class="active">🔔 Алерты <span id="alert-badge" style="background:#e74c3c;color:white;border-radius:50%;padding:1px 8px;font-size:12px;margin-left:5px;">0</span></a>
+    <a href="/alerts" class="active">🔔 Алерты <span id="alert-badge" style="background:#e74c3c;color:white;border-radius:50%;padding:1px 8px;font-size:12px;margin-left:5px;display:none;">0</span></a>
     <a href="/rules">⚙️ Правила</a>
 </nav>
 
@@ -189,12 +226,13 @@
         <button class="active" data-filter="all">Все</button>
         <button data-filter="active">Активные</button>
         <button data-filter="resolved">Разрешенные</button>
-        <button onclick="refreshAlerts()" style="margin-left:auto;background:#2a5298;color:white;border-color:#2a5298;">🔄 Обновить</button>
+        <button class="refresh-btn" onclick="refreshAlerts()">🔄 Обновить</button>
+        <span style="font-size:12px;color:#999;" id="last-update-time"></span>
     </div>
 
     <div class="alert-list" id="alert-list">
-        <div class="empty-state">
-            <div class="icon">🔄</div>
+        <div class="loading-spinner">
+            <div class="spinner"></div>
             <p>Загрузка...</p>
         </div>
     </div>
@@ -202,15 +240,45 @@
 
 <script>
     let currentFilter = 'all';
+    let isLoading = false;
 
     function loadAlerts(filter = 'all') {
+        if (isLoading) return;
+        isLoading = true;
+
         const container = document.getElementById('alert-list');
-        container.innerHTML = '<div class="empty-state"><div class="icon">🔄</div><p>Загрузка...</p></div>';
+        container.innerHTML = `
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Загрузка...</p>
+            </div>
+        `;
 
         // Загружаем все события
         fetch('/api/alerts/events')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Ошибка сервера: ' + res.status);
+                }
+                return res.json();
+            })
             .then(data => {
+                // Проверяем, что data - это массив
+                if (!Array.isArray(data)) {
+                    console.warn('Получены неверные данные:', data);
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">⚠️</div>
+                            <p>Получены некорректные данные</p>
+                            <div class="sub-text">Попробуйте обновить страницу</div>
+                        </div>
+                    `;
+                    isLoading = false;
+                    return;
+                }
+
+                console.log('Получено событий:', data.length);
+
                 // Фильтруем
                 let filtered = data;
                 if (filter === 'active') {
@@ -219,20 +287,48 @@
                     filtered = data.filter(a => a.status === 'resolved');
                 }
 
+                // Обновляем счетчики
                 const activeCount = data.filter(a => a.status === 'triggered').length;
-                document.getElementById('active-count').textContent = 'Активных: ' + activeCount;
-                document.getElementById('alert-badge').textContent = activeCount;
+                const activeCountEl = document.getElementById('active-count');
+                const badgeEl = document.getElementById('alert-badge');
 
+                if (activeCountEl) {
+                    activeCountEl.textContent = 'Активных: ' + activeCount;
+                    activeCountEl.style.background = activeCount > 0 ? '#e74c3c' : '#2ecc71';
+                }
+                if (badgeEl) {
+                    badgeEl.textContent = activeCount;
+                    badgeEl.style.display = activeCount > 0 ? 'inline' : 'none';
+                }
+
+                // Обновляем время последнего обновления
+                const now = new Date();
+                document.getElementById('last-update-time').textContent =
+                    'Обновлено: ' + now.toLocaleTimeString('ru-RU');
+
+                // Если нет событий
                 if (filtered.length === 0) {
+                    let message = 'Нет событий алертов';
+                    let icon = '✅';
+                    if (filter === 'active') {
+                        message = 'Нет активных алертов';
+                        icon = '✅';
+                    } else if (filter === 'resolved') {
+                        message = 'Нет разрешенных алертов';
+                        icon = '📋';
+                    }
                     container.innerHTML = `
                         <div class="empty-state">
-                            <div class="icon">✅</div>
-                            <p>Нет событий алертов</p>
+                            <div class="icon">${icon}</div>
+                            <p>${message}</p>
+                            <div class="sub-text">Создайте правило алерта на странице "Правила"</div>
                         </div>
                     `;
+                    isLoading = false;
                     return;
                 }
 
+                // Отображаем события
                 container.innerHTML = filtered.map(alert => `
                     <div class="alert-item">
                         <div class="left">
@@ -252,9 +348,23 @@
                         </div>
                     </div>
                 `).join('');
+
+                isLoading = false;
             })
-            .catch(() => {
-                container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Ошибка загрузки</p></div>';
+            .catch(error => {
+                console.error('Ошибка загрузки алертов:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <p>Ошибка загрузки</p>
+                        <div class="sub-text">${error.message}</div>
+                        <button onclick="loadAlerts(currentFilter)"
+                                style="margin-top:15px;padding:8px 20px;border:none;background:#2a5298;color:white;border-radius:6px;cursor:pointer;">
+                            🔄 Попробовать снова
+                        </button>
+                    </div>
+                `;
+                isLoading = false;
             });
     }
 
@@ -262,8 +372,16 @@
         if (!dateStr) return '--:--';
         try {
             const d = new Date(dateStr);
-            return d.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-        } catch { return '--:--'; }
+            if (isNaN(d.getTime())) return '--:--';
+            return d.toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return '--:--';
+        }
     }
 
     function refreshAlerts() {
@@ -276,6 +394,7 @@
             .catch(() => { window.location.href = '/login'; });
     }
 
+    // Инициализация
     document.addEventListener('DOMContentLoaded', function() {
         // Фильтры
         document.querySelectorAll('.filters button[data-filter]').forEach(btn => {
@@ -287,7 +406,9 @@
             });
         });
 
+        // Загружаем алерты
         loadAlerts('all');
+
         // Автообновление каждые 15 секунд
         setInterval(() => loadAlerts(currentFilter), 15000);
     });

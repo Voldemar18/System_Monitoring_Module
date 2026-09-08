@@ -2,6 +2,9 @@ package ru.student.testing.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.student.testing.dto.AlertEventDto;
@@ -11,16 +14,13 @@ import ru.student.testing.entity.AlertRule;
 import ru.student.testing.repository.AlertEventRepository;
 import ru.student.testing.repository.AlertRuleRepository;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Реализация сервиса для управления алертами.
- * Наследует BaseService для использования общих методов логирования
- * и реализует интерфейс IAlertService для обеспечения контракта.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,14 +30,7 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
     private final AlertEventRepository alertEventRepository;
     private final IMetricService metricService;
 
-    /**
-     * Хранит последние значения метрик для отслеживания изменений
-     */
     private final Map<String, Double> lastMetricValues = new HashMap<>();
-
-    /**
-     * Счетчик нарушений для каждого правила (используется для duration)
-     */
     private final Map<String, Integer> violationCounter = new HashMap<>();
 
     @Override
@@ -45,14 +38,11 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
         return "AlertRule";
     }
 
-    /**
-     * Проверяет все активные правила на соответствие текущим метрикам.
-     * Для каждого правила проверяется текущее значение метрики и,
-     * если условие нарушено, создается или обновляется событие алерта.
-     */
     @Override
     @Transactional
     public void checkAlerts(Map<String, Double> currentMetrics) {
+        log.debug("Проверка алертов, метрик: {}", currentMetrics.size());
+
         List<AlertRule> activeRules = alertRuleRepository.findAllByIsActiveTrue();
 
         for (AlertRule rule : activeRules) {
@@ -75,14 +65,9 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
         }
     }
 
-    /**
-     * Обрабатывает ситуацию, когда условие правила нарушено.
-     * Учитывает durationSeconds - если задано, то ждет накопления нарушений.
-     */
     private void handleViolation(AlertRule rule, Double currentValue, List<AlertEvent> activeEvents) {
         String key = rule.getId().toString();
 
-        // Если задана длительность, считаем количество нарушений
         if (rule.getDurationSeconds() > 0) {
             violationCounter.merge(key, 1, Integer::sum);
             int requiredCount = rule.getDurationSeconds() / 5;
@@ -92,42 +77,33 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
             }
         }
 
-        // Если нет активных событий - создаем новое
         if (activeEvents.isEmpty()) {
             AlertEvent event = new AlertEvent(rule, currentValue);
             event.initAuditFields();
-            alertEventRepository.save(event);
-            log.warn("Алерт сработал! Правило: {}, Значение: {}",
-                    rule.getName(), currentValue);
+            AlertEvent saved = alertEventRepository.save(event);
+            log.info("Алерт СОЗДАН! ID: {}, Правило: {}, Значение: {}",
+                    saved.getId(), rule.getName(), currentValue);
         } else {
             AlertEvent event = activeEvents.get(0);
             event.setTriggerValue(currentValue);
             event.initAuditFields();
             alertEventRepository.save(event);
+            log.debug("Алерт обновлен: {}", rule.getName());
         }
     }
 
-    /**
-     * Обрабатывает нормальное состояние (условие не нарушено).
-     * Сбрасывает счетчик нарушений и разрешает активные алерты.
-     */
     private void handleNormalState(AlertRule rule, Double currentValue, List<AlertEvent> activeEvents) {
         String key = rule.getId().toString();
-
         violationCounter.remove(key);
 
         if (!activeEvents.isEmpty()) {
             AlertEvent event = activeEvents.get(0);
             event.resolve();
             alertEventRepository.save(event);
-            log.info("Алерт разрешен: {}", rule.getName());
+            log.info("Алерт РАЗРЕШЕН: {}", rule.getName());
         }
     }
 
-    /**
-     * Создает новое правило алерта.
-     * Проверяет, что правило с таким именем не существует.
-     */
     @Override
     @Transactional
     public AlertRuleDto createRule(AlertRuleDto ruleDto) {
@@ -143,7 +119,6 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
         return AlertRuleDto.fromEntity(savedRule);
     }
 
-    //Обновляет существующее правило алерта.
     @Override
     @Transactional
     public AlertRuleDto updateRule(Long id, AlertRuleDto ruleDto) {
@@ -165,7 +140,6 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
         return AlertRuleDto.fromEntity(updatedRule);
     }
 
-    //Удаляет правило алерта по идентификатору.
     @Override
     @Transactional
     public void deleteRule(Long id) {
@@ -175,7 +149,6 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
         logDeletion(rule);
     }
 
-    //Переключает состояние правила (активно/неактивно).
     @Override
     @Transactional
     public AlertRuleDto toggleRule(Long id) {
@@ -189,7 +162,6 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
         return AlertRuleDto.fromEntity(savedRule);
     }
 
-    //Получает все правила алертов.
     @Override
     public List<AlertRuleDto> getAllRules() {
         return alertRuleRepository.findAll().stream()
@@ -197,16 +169,12 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
                 .collect(Collectors.toList());
     }
 
-    //Получает правило по идентификатору.
-
     @Override
     public AlertRuleDto getRuleById(Long id) {
         AlertRule rule = alertRuleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Правило не найдено с id: " + id));
         return AlertRuleDto.fromEntity(rule);
     }
-
-    //Получает все активные (неразрешенные) алерты.
 
     @Override
     public List<AlertEventDto> getActiveAlerts() {
@@ -216,17 +184,87 @@ public class AlertServiceImpl extends BaseService<AlertRule> implements IAlertSe
                 .collect(Collectors.toList());
     }
 
-    //Получает последние 50 событий алертов.
-
     @Override
     public List<AlertEventDto> getAllAlertEvents() {
-        return alertEventRepository.findLast50Events()
-                .stream()
-                .map(AlertEventDto::fromEntity)
-                .collect(Collectors.toList());
+        log.info("📊 Вызов getAllAlertEvents()");
+        try {
+            long totalCount = alertEventRepository.count();
+            log.info(" Всего записей в alert_events: {}", totalCount);
+
+            List<AlertEvent> events = alertEventRepository.findLast50EventsNative();
+            log.info("Native query вернула {} событий", events != null ? events.size() : 0);
+
+            if (events == null) {
+                events = new ArrayList<>();
+            }
+
+            if (!events.isEmpty()) {
+                AlertEvent first = events.get(0);
+                log.info("Первое событие: ID={}, статус={}, правило={}",
+                        first.getId(),
+                        first.getStatus(),
+                        first.getRule() != null ? first.getRule().getName() : "null");
+            }
+
+            return events.stream()
+                    .map(AlertEventDto::fromEntity)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("Ошибка при получении событий алертов: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
-    //Получает количество активных (неразрешенных) алертов.
+    @Override
+    public List<AlertEventDto> getRecentAlertEvents(int limit) {
+        log.info("Вызов getRecentAlertEvents({})", limit);
+        try {
+            List<AlertEvent> events = alertEventRepository.findLastNEvents(limit);
+            log.info("Получено {} событий", events.size());
+            return events.stream()
+                    .map(AlertEventDto::fromEntity)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Ошибка при получении последних {} событий: {}", limit, e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<AlertEventDto> getAlertEventsForLastHours(int hours) {
+        log.info("Вызов getAlertEventsForLastHours({})", hours);
+        try {
+            LocalDateTime from = LocalDateTime.now().minusHours(hours);
+            List<AlertEvent> events = alertEventRepository.findByStartedAtAfterOrderByStartedAtDesc(from);
+            log.info("Получено {} событий за последние {} часов", events.size(), hours);
+            return events.stream()
+                    .map(AlertEventDto::fromEntity)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Ошибка при получении событий за последние {} часов: {}", hours, e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<AlertEventDto> getAlertEventsForLastHours(int hours, int page, int size) {
+        log.info("Вызов getAlertEventsForLastHours({}, {}, {})", hours, page, size);
+        try {
+            LocalDateTime from = LocalDateTime.now().minusHours(hours);
+            Pageable pageable = PageRequest.of(page, size);
+            Page<AlertEvent> eventsPage = alertEventRepository.findByStartedAtAfter(from, pageable);
+            log.info("Получено {} событий (страница {}, размер {})",
+                    eventsPage.getContent().size(), page, size);
+            return eventsPage.getContent().stream()
+                    .map(AlertEventDto::fromEntity)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Ошибка при получении событий с пагинацией: {}", e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
     @Override
     public long getActiveAlertsCount() {
         return alertEventRepository.countByStatus("triggered");

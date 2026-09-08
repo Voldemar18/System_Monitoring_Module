@@ -15,6 +15,7 @@ import ru.student.testing.repository.AlertRuleRepository;
 import ru.student.testing.service.AlertServiceImpl;
 import ru.student.testing.service.IMetricService;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,12 +48,24 @@ class AlertServiceImplTest {
     @BeforeEach
     void setUp() {
         // Подготовка тестовых данных перед каждым тестом
-        testRule = AlertRule.createActive("High CPU", "cpu_percent", ">", 80.0);
-        testRule.setId(1L);
+        testRule = AlertRule.builder()
+                .id(1L)
+                .name("High CPU")
+                .metricName("cpu_percent")
+                .condition(">")
+                .threshold(80.0)
+                .isActive(true)
+                .durationSeconds(0)
+                .build();
         testRule.initAuditFields();
 
-        testEvent = new AlertEvent(testRule, 85.0);
-        testEvent.setId(1L);
+        testEvent = AlertEvent.builder()
+                .id(1L)
+                .rule(testRule)
+                .status("triggered")
+                .triggerValue(85.0)
+                .startedAt(LocalDateTime.now())
+                .build();
         testEvent.initAuditFields();
 
         testMetrics = new HashMap<>();
@@ -61,17 +74,15 @@ class AlertServiceImplTest {
         testMetrics.put("disk_used_percent", 75.0);
     }
 
-    //ТЕСТ 1: Проверка типа сущности
+    // ТЕСТ 1: Проверка типа сущности
     @Test
     void testGetEntityType() {
-        // Проверяем, что сервис возвращает правильный тип сущности
         assertEquals("AlertRule", alertService.getEntityType());
     }
 
-    //ТЕСТ 2: Создание правила
+    // ТЕСТ 2: Создание правила
     @Test
     void testCreateRule() {
-        // Проверяем создание нового правила алерта
         AlertRuleDto ruleDto = AlertRuleDto.builder()
                 .name("High CPU")
                 .metricName("cpu_percent")
@@ -92,10 +103,9 @@ class AlertServiceImplTest {
         verify(alertRuleRepository, times(1)).save(any(AlertRule.class));
     }
 
-    //ТЕСТ 3: Создание правила с дублирующимся именем
+    // ТЕСТ 3: Создание правила с дублирующимся именем
     @Test
     void testCreateRuleDuplicateName() {
-        // Проверяем, что при создании правила с существующим именем выбрасывается исключение
         AlertRuleDto ruleDto = AlertRuleDto.builder()
                 .name("High CPU")
                 .metricName("cpu_percent")
@@ -109,10 +119,9 @@ class AlertServiceImplTest {
         verify(alertRuleRepository, never()).save(any(AlertRule.class));
     }
 
-    //ТЕСТ 4: Обновление правила
+    // ТЕСТ 4: Обновление правила
     @Test
     void testUpdateRule() {
-        // Проверяем обновление существующего правила
         AlertRuleDto updateDto = AlertRuleDto.builder()
                 .name("Critical CPU")
                 .metricName("cpu_percent")
@@ -132,10 +141,9 @@ class AlertServiceImplTest {
         verify(alertRuleRepository, times(1)).save(any(AlertRule.class));
     }
 
-    //ТЕСТ 5: Обновление несуществующего правила
+    // ТЕСТ 5: Обновление несуществующего правила
     @Test
     void testUpdateRuleNotFound() {
-        // Проверяем, что при обновлении несуществующего правила выбрасывается исключение
         AlertRuleDto updateDto = AlertRuleDto.builder().name("Test").build();
 
         when(alertRuleRepository.findById(999L)).thenReturn(Optional.empty());
@@ -143,10 +151,9 @@ class AlertServiceImplTest {
         assertThrows(RuntimeException.class, () -> alertService.updateRule(999L, updateDto));
     }
 
-    //ТЕСТ 6: Удаление правила
+    // ТЕСТ 6: Удаление правила
     @Test
     void testDeleteRule() {
-        // Проверяем удаление правила
         when(alertRuleRepository.findById(1L)).thenReturn(Optional.of(testRule));
         doNothing().when(alertRuleRepository).deleteById(1L);
 
@@ -155,25 +162,22 @@ class AlertServiceImplTest {
         verify(alertRuleRepository, times(1)).deleteById(1L);
     }
 
-    //ТЕСТ 7: Переключение состояния правила
+    // ТЕСТ 7: Переключение состояния правила
     @Test
     void testToggleRule() {
-        // Проверяем переключение активности правила (активно/неактивно)
         when(alertRuleRepository.findById(1L)).thenReturn(Optional.of(testRule));
         when(alertRuleRepository.save(any(AlertRule.class))).thenReturn(testRule);
 
         AlertRuleDto result = alertService.toggleRule(1L);
 
         assertNotNull(result);
-        // Проверяем, что состояние переключилось (было true, стало false)
         assertFalse(testRule.getIsActive());
         verify(alertRuleRepository, times(1)).save(any(AlertRule.class));
     }
 
-    //ТЕСТ 8: Получение всех правил
+    // ТЕСТ 8: Получение всех правил
     @Test
     void testGetAllRules() {
-        // Проверяем получение списка всех правил
         List<AlertRule> mockRules = Arrays.asList(testRule, testRule);
         when(alertRuleRepository.findAll()).thenReturn(mockRules);
 
@@ -184,10 +188,9 @@ class AlertServiceImplTest {
         verify(alertRuleRepository, times(1)).findAll();
     }
 
-    //ТЕСТ 9: Получение правила по ID
+    // ТЕСТ 9: Получение правила по ID
     @Test
     void testGetRuleById() {
-        // Проверяем получение правила по его ID
         when(alertRuleRepository.findById(1L)).thenReturn(Optional.of(testRule));
 
         AlertRuleDto result = alertService.getRuleById(1L);
@@ -197,10 +200,9 @@ class AlertServiceImplTest {
         verify(alertRuleRepository, times(1)).findById(1L);
     }
 
-    //ТЕСТ 10: Проверка алертов - нарушение условия
+    // ТЕСТ 10: Проверка алертов - нарушение условия
     @Test
     void testCheckAlertsViolation() {
-        // Проверяем, что при нарушении условия создается событие алерта
         List<AlertRule> activeRules = Collections.singletonList(testRule);
         when(alertRuleRepository.findAllByIsActiveTrue()).thenReturn(activeRules);
         when(alertEventRepository.findAllByRuleIdAndStatus(1L, "triggered"))
@@ -212,11 +214,9 @@ class AlertServiceImplTest {
         verify(alertEventRepository, times(1)).save(any(AlertEvent.class));
     }
 
-    //ТЕСТ 11: Проверка алертов - условие не нарушено
+    // ТЕСТ 11: Проверка алертов - условие не нарушено
     @Test
     void testCheckAlertsNoViolation() {
-        // Проверяем, что при отсутствии нарушения событие не создается
-        // Меняем значение метрики на безопасное (ниже порога)
         testMetrics.put("cpu_percent", 50.0);
 
         List<AlertRule> activeRules = Collections.singletonList(testRule);
@@ -226,14 +226,12 @@ class AlertServiceImplTest {
 
         alertService.checkAlerts(testMetrics);
 
-        // Проверяем, что save не вызывался
         verify(alertEventRepository, never()).save(any(AlertEvent.class));
     }
 
-    //ТЕСТ 12: Получение активных алертов
+    // ТЕСТ 12: Получение активных алертов
     @Test
     void testGetActiveAlerts() {
-        // Проверяем получение списка активных (неразрешенных) алертов
         List<AlertEvent> mockEvents = Collections.singletonList(testEvent);
         when(alertEventRepository.findAllByStatusOrderByStartedAtDesc("triggered"))
                 .thenReturn(mockEvents);
@@ -247,10 +245,9 @@ class AlertServiceImplTest {
                 .findAllByStatusOrderByStartedAtDesc("triggered");
     }
 
-    //ТЕСТ 13: Получение количества активных алертов
+    // ТЕСТ 13: Получение количества активных алертов
     @Test
     void testGetActiveAlertsCount() {
-        // Проверяем подсчет количества активных алертов
         when(alertEventRepository.countByStatus("triggered")).thenReturn(3L);
 
         long count = alertService.getActiveAlertsCount();
@@ -259,17 +256,73 @@ class AlertServiceImplTest {
         verify(alertEventRepository, times(1)).countByStatus("triggered");
     }
 
-    //ТЕСТ 14: Получение всех событий алертов
+    // ТЕСТ 14: Получение всех событий алертов
     @Test
     void testGetAllAlertEvents() {
-        // Проверяем получение последних 50 событий
         List<AlertEvent> mockEvents = Arrays.asList(testEvent, testEvent);
-        when(alertEventRepository.findLast50Events()).thenReturn(mockEvents);
+        // ИСПРАВЛЕНО: используем findLast50EventsNative() вместо findLast50Events()
+        when(alertEventRepository.findLast50EventsNative()).thenReturn(mockEvents);
 
         List<AlertEventDto> result = alertService.getAllAlertEvents();
 
         assertNotNull(result);
         assertEquals(2, result.size());
-        verify(alertEventRepository, times(1)).findLast50Events();
+        verify(alertEventRepository, times(1)).findLast50EventsNative();
+    }
+
+    // ТЕСТ 15: Получение последних N событий
+    @Test
+    void testGetRecentAlertEvents() {
+        List<AlertEvent> mockEvents = Arrays.asList(testEvent, testEvent);
+        when(alertEventRepository.findLastNEvents(10)).thenReturn(mockEvents);
+
+        List<AlertEventDto> result = alertService.getRecentAlertEvents(10);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        verify(alertEventRepository, times(1)).findLastNEvents(10);
+    }
+
+    // ТЕСТ 16: Получение событий за последние часы
+    @Test
+    void testGetAlertEventsForLastHours() {
+        List<AlertEvent> mockEvents = Collections.singletonList(testEvent);
+        when(alertEventRepository.findByStartedAtAfterOrderByStartedAtDesc(any(LocalDateTime.class)))
+                .thenReturn(mockEvents);
+
+        List<AlertEventDto> result = alertService.getAlertEventsForLastHours(24);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(alertEventRepository, times(1))
+                .findByStartedAtAfterOrderByStartedAtDesc(any(LocalDateTime.class));
+    }
+
+    // ТЕСТ 17: Проверка алертов с учетом длительности (durationSeconds)
+    @Test
+    void testCheckAlertsWithDuration() {
+        // Создаем правило с длительностью 10 секунд
+        AlertRule durationRule = AlertRule.builder()
+                .id(2L)
+                .name("High CPU with Duration")
+                .metricName("cpu_percent")
+                .condition(">")
+                .threshold(80.0)
+                .isActive(true)
+                .durationSeconds(10)
+                .build();
+        durationRule.initAuditFields();
+
+        List<AlertRule> activeRules = Collections.singletonList(durationRule);
+        when(alertRuleRepository.findAllByIsActiveTrue()).thenReturn(activeRules);
+
+        // Первый вызов - нарушение, но duration не достигнут
+        when(alertEventRepository.findAllByRuleIdAndStatus(2L, "triggered"))
+                .thenReturn(Collections.emptyList());
+
+        alertService.checkAlerts(testMetrics);
+
+        // Проверяем, что save не вызывался (duration не достигнут)
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
     }
 }
