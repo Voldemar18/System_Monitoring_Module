@@ -108,4 +108,20 @@ public class MetricController {
         String report = metricService.generateSystemReport();
         return ResponseEntity.ok(report);
     }
+
+
+    @PostMapping("/report/telegram")
+    public ResponseEntity<String> sendReportToTelegram(
+            @RequestParam(defaultValue = "10") int minutes) {
+        log.info("POST /api/metrics/report/telegram - отправка отчёта за {} мин", minutes);
+        boolean ok = metricService.sendReportToTelegram(minutes);
+        return ok
+                ? ResponseEntity.ok("✅ Отчёт за " + minutes + " мин отправлен в Telegram")
+                : ResponseEntity.status(500).body("❌ Не удалось отправить отчёт (проверь настройки бота)");
+    }
+
+    @GetMapping("/report/preview")
+    public ResponseEntity<String> previewReport(@RequestParam(defaultValue = "10") int minutes) {
+        return ResponseEntity.ok(metricService.buildReportForLastMinutes(minutes));
+    }
 }

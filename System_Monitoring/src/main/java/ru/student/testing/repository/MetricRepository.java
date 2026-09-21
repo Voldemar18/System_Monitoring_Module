@@ -54,4 +54,22 @@ public interface MetricRepository extends JpaRepository<Metric, Long> {
 
     @Query("SELECT DISTINCT m.metricName FROM Metric m")
     List<String> findAllMetricNames();
+
+    @Query(value = "SELECT MIN(value) FROM metrics WHERE metric_name = :metricName AND timestamp >= :from", nativeQuery = true)
+    Double findMinValueSince(@Param("metricName") String metricName, @Param("from") LocalDateTime from);
+
+    @Query(value = "SELECT AVG(value) FROM metrics WHERE metric_name = :metricName AND timestamp >= :from", nativeQuery = true)
+    Double findAvgValueSince(@Param("metricName") String metricName, @Param("from") LocalDateTime from);
+
+    @Query(value = "SELECT MAX(value) FROM metrics WHERE metric_name = :metricName AND timestamp >= :from", nativeQuery = true)
+    Double findMaxValueSince(@Param("metricName") String metricName, @Param("from") LocalDateTime from);
+
+    @Query("""
+    SELECT m FROM Metric m
+    WHERE m.metricName IN :names
+      AND m.timestamp >= :from
+    ORDER BY m.timestamp ASC
+""")
+    List<Metric> findMetricsSince(@Param("names") List<String> names,
+                                  @Param("from") LocalDateTime from);
 }

@@ -35,4 +35,8 @@ public interface IMetricService {
     void cleanOldMetrics(int days);
 
     String generateSystemReport();
+
+    String buildReportForLastMinutes(int minutes); //для телеграмма
+
+    boolean sendReportToTelegram(int minutes);
 }
